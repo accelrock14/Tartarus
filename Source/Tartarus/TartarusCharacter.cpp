@@ -5,6 +5,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 ATartarusCharacter::ATartarusCharacter()
@@ -23,8 +24,8 @@ ATartarusCharacter::ATartarusCharacter()
 	CameraBoom->SetUsingAbsoluteRotation(true); // Rotation of the character should not affect rotation of boom
 	CameraBoom->bDoCollisionTest = false;
 	CameraBoom->TargetArmLength = 500.f;
-	CameraBoom->SocketOffset = FVector(0.f,0.f,75.f);
-	CameraBoom->SetRelativeRotation(FRotator(0.f,180.f,0.f));
+	CameraBoom->SocketOffset = FVector(0.f, 0.f, 75.f);
+	CameraBoom->SetRelativeRotation(FRotator(0.f, 180.f, 0.f));
 
 	// Create a camera and attach to boom
 	SideViewCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("SideViewCamera"));
@@ -32,7 +33,7 @@ ATartarusCharacter::ATartarusCharacter()
 	SideViewCameraComponent->bUsePawnControlRotation = false; // We don't want the controller rotating the camera
 
 	// Configure character movement
-	GetCharacterMovement()->bOrientRotationToMovement = true; // Face in the direction we are moving..
+	GetCharacterMovement()->bOrientRotationToMovement = true;			 // Face in the direction we are moving..
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 720.0f, 0.0f); // ...at this rotation rate
 	GetCharacterMovement()->GravityScale = 2.f;
 	GetCharacterMovement()->AirControl = 0.80f;
@@ -41,14 +42,16 @@ ATartarusCharacter::ATartarusCharacter()
 	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 	GetCharacterMovement()->MaxFlySpeed = 600.f;
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
+	State = ECharacterState::E_Default;
+
+	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character)
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Input
 
-void ATartarusCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
+void ATartarusCharacter::SetupPlayerInputComponent(class UInputComponent *PlayerInputComponent)
 {
 	// set up gameplay key bindings
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
@@ -62,7 +65,7 @@ void ATartarusCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 void ATartarusCharacter::MoveRight(float Value)
 {
 	// add movement in that direction
-	AddMovementInput(FVector(0.f,-1.f,0.f), Value);
+	AddMovementInput(FVector(0.f, -1.f, 0.f), Value);
 }
 
 void ATartarusCharacter::TouchStarted(const ETouchIndex::Type FingerIndex, const FVector Location)
@@ -76,3 +79,30 @@ void ATartarusCharacter::TouchStopped(const ETouchIndex::Type FingerIndex, const
 	StopJumping();
 }
 
+void ATartarusCharacter::DealDamage(float DamageValue)
+{
+	if (State != ECharacterState::E_Invinsible)
+	{
+		Health -= DamageValue;
+		if (Health <= 0.0f)
+		{
+			Destroy();
+		}
+		else
+		{
+			LaunchCharacter(FVector(0.0f, -800.0f, 20.0f), false, false);
+			BeginInvinsibilityTimer();
+		}
+	}
+}
+
+void ATartarusCharacter::BeginInvinsibilityTimer()
+{
+	GetWorld()->GetTimerManager().SetTimer(InvinsibilityTimer, this, &ATartarusCharacter::EndInvinsibilityTimer, 2.0f, false);
+	State = ECharacterState::E_Invinsible;
+}
+
+void ATartarusCharacter::EndInvinsibilityTimer()
+{
+	State = ECharacterState::E_Default;
+}
